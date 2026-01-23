@@ -1,0 +1,7 @@
+services:
+  publishy:
+    build: .
+    container_name: publishy
+    restart: unless-stopped
+    env_file:
+      - .env
