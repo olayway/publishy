@@ -10,6 +10,14 @@ A Discord bot that monitors your social media posting activity and reacts like a
 - **Smart reminders** - Checks multiple times daily and sends mood-appropriate messages
 - **Real-time celebrations** - Immediately reacts when you share social media links
 
+## Commands
+
+| Command   | Description                                     |
+| --------- | ----------------------------------------------- |
+| `/pet`    | Pet Publishy and get a cute response            |
+| `/mood`   | Check Publishy's current mood and posting stats |
+| `/digest` | See unique posts from the last 7 days by domain |
+
 ## Setup
 
 ### Prerequisites
