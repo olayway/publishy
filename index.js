@@ -355,8 +355,8 @@ function formatWeeklySummary(posts) {
   let summary = `🍽️ **My Digest** (${posts.length} yummy posts this week)\n\n`;
 
   for (const [domain, domainPosts] of Object.entries(byDomain)) {
-    // Sort by date, most recent first
-    domainPosts.sort((a, b) => b.date - a.date);
+    // Sort by date, oldest first
+    domainPosts.sort((a, b) => a.date - b.date);
     summary += `**${domain}** (${domainPosts.length})\n`;
     for (const post of domainPosts) {
       const dateStr = post.date.toLocaleDateString("en-US", {
