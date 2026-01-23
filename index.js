@@ -1,5 +1,12 @@
 import "dotenv/config";
-import { Client, GatewayIntentBits, Partials } from "discord.js";
+import {
+  Client,
+  GatewayIntentBits,
+  Partials,
+  REST,
+  Routes,
+  SlashCommandBuilder,
+} from "discord.js";
 import cron from "node-cron";
 
 const TOKEN = process.env.DISCORD_TOKEN;
@@ -23,7 +30,7 @@ const WHITELISTED_DOMAINS = [
   "substack.com",
 ];
 
-// Tamagotchi mood states
+// Publishy mood states
 const MOODS = {
   HAPPY: "happy",
   HUNGRY: "hungry",
@@ -38,6 +45,14 @@ const MOOD_ICONS = {
   [MOODS.SAD]: "💔",
   [MOODS.DYING]: "💀",
 };
+
+// Slash commands
+const commands = [
+  new SlashCommandBuilder().setName("pet").setDescription("Pet Publishy"),
+  new SlashCommandBuilder()
+    .setName("mood")
+    .setDescription("Check how Publishy is feeling"),
+].map((cmd) => cmd.toJSON());
 
 // Track daily posting stats
 let lastSocialPostAt = null;
@@ -73,7 +88,7 @@ function isWhitelistedURL(url) {
   }
 }
 
-// Get Tamagotchi mood based on time since last post
+// Get Publishy mood based on time since last post
 function getMood() {
   if (!lastSocialPostAt) {
     const now = new Date();
@@ -92,7 +107,7 @@ function getMood() {
   return MOODS.DYING;
 }
 
-// Get Tamagotchi message based on mood
+// Get Publishy message based on mood
 function getMoodMessage(mood) {
   const messages = {
     [MOODS.HAPPY]: [
@@ -151,6 +166,13 @@ client.on("ready", async () => {
   console.log(`Logged in as ${client.user.tag}`);
   console.log(`Looking for channel ID: ${CHANNEL_ID}`);
 
+  // Register slash commands
+  const rest = new REST({ version: "10" }).setToken(TOKEN);
+  await rest.put(Routes.applicationCommands(client.user.id), {
+    body: commands,
+  });
+  console.log("Slash commands registered!");
+
   // Initialize from recent messages
   await refreshPostingStats();
 
@@ -163,7 +185,7 @@ client.on("ready", async () => {
     }
   });
 
-  console.log("Tamagotchi social media monitor is alive! 🌸");
+  console.log("Publishy - the Flowershow social media monitor is alive! 🌸");
 });
 
 client.on("messageCreate", async (message) => {
@@ -192,6 +214,38 @@ client.on("messageCreate", async (message) => {
     await channel.send(getMoodMessage(MOODS.HAPPY));
 
     console.log(`Social media post detected! Posts today: ${postsToday}`);
+  }
+});
+
+// Handle slash commands
+client.on("interactionCreate", async (interaction) => {
+  if (!interaction.isChatInputCommand()) return;
+
+  if (interaction.commandName === "pet") {
+    const responses = [
+      "*happy wiggles* 🌸 thank you for the pets!!",
+      "hehe that tickles ✨",
+      "*purrs in social media* 💖",
+      "i feel so loved!! now please feed me a post 🥺",
+    ];
+    const response = responses[Math.floor(Math.random() * responses.length)];
+    await interaction.reply(response);
+  }
+
+  if (interaction.commandName === "mood") {
+    currentMood = getMood();
+    const icon = MOOD_ICONS[currentMood];
+    const hoursSince = lastSocialPostAt
+      ? Math.round((Date.now() - lastSocialPostAt) / (1000 * 60 * 60))
+      : null;
+
+    const status = lastSocialPostAt
+      ? `Last fed: ${hoursSince}h ago`
+      : "Never been fed today 😢";
+
+    await interaction.reply(
+      `${icon} Mood: **${currentMood}**\n📊 Posts today: ${postsToday}\n⏰ ${status}`,
+    );
   }
 });
 
