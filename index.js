@@ -52,6 +52,9 @@ const commands = [
   new SlashCommandBuilder()
     .setName("mood")
     .setDescription("Check how Publishy is feeling"),
+  new SlashCommandBuilder()
+    .setName("digest")
+    .setDescription("See what Publishy has been fed this week"),
 ].map((cmd) => cmd.toJSON());
 
 // Track daily posting stats
@@ -85,6 +88,26 @@ function isWhitelistedURL(url) {
     );
   } catch {
     return false;
+  }
+}
+
+// Normalize URL by removing search params for deduplication
+function normalizeURL(url) {
+  try {
+    const urlObj = new URL(url);
+    return `${urlObj.origin}${urlObj.pathname}`;
+  } catch {
+    return url;
+  }
+}
+
+// Get domain name from URL for grouping
+function getDomain(url) {
+  try {
+    const urlObj = new URL(url);
+    return urlObj.hostname.replace("www.", "");
+  } catch {
+    return "unknown";
   }
 }
 
@@ -247,7 +270,102 @@ client.on("interactionCreate", async (interaction) => {
       `${icon} Mood: **${currentMood}**\n📊 Posts today: ${postsToday}\n⏰ ${status}`,
     );
   }
+
+  if (interaction.commandName === "digest") {
+    await interaction.deferReply(); // May take a while to fetch messages
+    try {
+      const posts = await getWeeklySummary();
+      const summary = formatWeeklySummary(posts);
+      await interaction.editReply(summary);
+    } catch (err) {
+      console.error("Failed to get weekly summary:", err);
+      await interaction.editReply("😵 Oops! I couldn't fetch the summary...");
+    }
+  }
 });
+
+// Fetch posts from the last 7 days with unique URLs
+async function getWeeklySummary() {
+  const channel = await client.channels.fetch(CHANNEL_ID);
+  if (!channel || !channel.isTextBased()) {
+    throw new Error("Channel not found or not text-based.");
+  }
+
+  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const uniqueUrls = new Map(); // normalized URL -> { url, date, domain }
+
+  let lastMessageId = null;
+  let keepFetching = true;
+
+  // Fetch messages in batches (Discord limits to 100 per request)
+  while (keepFetching) {
+    const options = { limit: 100 };
+    if (lastMessageId) options.before = lastMessageId;
+
+    const msgs = await channel.messages.fetch(options);
+    if (msgs.size === 0) break;
+
+    for (const [, msg] of msgs) {
+      // Stop if we've gone past 7 days
+      if (msg.createdTimestamp < sevenDaysAgo) {
+        keepFetching = false;
+        break;
+      }
+
+      if (msg.author?.bot) continue;
+
+      const urls = extractURLs(msg.content);
+      const socialUrls = urls.filter(isWhitelistedURL);
+
+      for (const url of socialUrls) {
+        const normalized = normalizeURL(url);
+        // Only keep the first occurrence (most recent)
+        if (!uniqueUrls.has(normalized)) {
+          uniqueUrls.set(normalized, {
+            url: normalized,
+            date: new Date(msg.createdTimestamp),
+            domain: getDomain(url),
+          });
+        }
+      }
+
+      lastMessageId = msg.id;
+    }
+  }
+
+  return Array.from(uniqueUrls.values());
+}
+
+// Format the weekly summary for display
+function formatWeeklySummary(posts) {
+  if (posts.length === 0) {
+    return "📭 No posts in the last 7 days... I am starving...";
+  }
+
+  // Group by domain
+  const byDomain = {};
+  for (const post of posts) {
+    if (!byDomain[post.domain]) byDomain[post.domain] = [];
+    byDomain[post.domain].push(post);
+  }
+
+  let summary = `🍽️ **My Digest** (${posts.length} yummy posts this week)\n\n`;
+
+  for (const [domain, domainPosts] of Object.entries(byDomain)) {
+    summary += `**${domain}** (${domainPosts.length})\n`;
+    for (const post of domainPosts) {
+      const dateStr = post.date.toLocaleDateString("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+      });
+      summary += `• ${post.url} (${dateStr})\n`;
+    }
+    summary += "\n";
+  }
+
+  return summary;
+}
 
 async function refreshPostingStats() {
   const channel = await client.channels.fetch(CHANNEL_ID);
