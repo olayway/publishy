@@ -1,0 +1,258 @@
+import "dotenv/config";
+import { Client, GatewayIntentBits, Partials } from "discord.js";
+import cron from "node-cron";
+
+const TOKEN = process.env.DISCORD_TOKEN;
+const CHANNEL_ID = process.env.CHANNEL_ID;
+
+// Safety defaults
+if (!TOKEN) throw new Error("Missing DISCORD_TOKEN in .env");
+if (!CHANNEL_ID) throw new Error("Missing CHANNEL_ID in .env");
+
+// Whitelisted social media domains
+const WHITELISTED_DOMAINS = [
+  "twitter.com",
+  "x.com",
+  "reddit.com",
+  "dev.to",
+  "linkedin.com",
+  "news.ycombinator.com",
+  "medium.com",
+  "hashnode.dev",
+  "hashnode.com",
+  "substack.com",
+];
+
+// Tamagotchi mood states
+const MOODS = {
+  HAPPY: "happy",
+  HUNGRY: "hungry",
+  SAD: "sad",
+  DYING: "dying",
+};
+
+// Mood icons
+const MOOD_ICONS = {
+  [MOODS.HAPPY]: "🌸",
+  [MOODS.HUNGRY]: "🥺",
+  [MOODS.SAD]: "💔",
+  [MOODS.DYING]: "💀",
+};
+
+// Track daily posting stats
+let lastSocialPostAt = null;
+let postsToday = 0;
+let lastCheckDate = new Date().toDateString();
+let currentMood = MOODS.HAPPY;
+let lastMoodMessageAt = null;
+
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+  ],
+  partials: [Partials.Channel],
+});
+
+// Extract URLs from message
+function extractURLs(text) {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  return text.match(urlRegex) || [];
+}
+
+// Check if URL is from whitelisted social media
+function isWhitelistedURL(url) {
+  try {
+    const urlObj = new URL(url);
+    return WHITELISTED_DOMAINS.some((domain) =>
+      urlObj.hostname.includes(domain),
+    );
+  } catch {
+    return false;
+  }
+}
+
+// Get Tamagotchi mood based on time since last post
+function getMood() {
+  if (!lastSocialPostAt) {
+    const now = new Date();
+    const hoursSinceStart = now.getHours();
+    if (hoursSinceStart < 12) return MOODS.HAPPY;
+    if (hoursSinceStart < 16) return MOODS.HUNGRY;
+    if (hoursSinceStart < 20) return MOODS.SAD;
+    return MOODS.DYING;
+  }
+
+  const hoursSincePost = (Date.now() - lastSocialPostAt) / (1000 * 60 * 60);
+
+  if (hoursSincePost < 12) return MOODS.HAPPY;
+  if (hoursSincePost < 18) return MOODS.HUNGRY;
+  if (hoursSincePost < 24) return MOODS.SAD;
+  return MOODS.DYING;
+}
+
+// Get Tamagotchi message based on mood
+function getMoodMessage(mood) {
+  const messages = {
+    [MOODS.HAPPY]: [
+      "YAY!! fresh Flowershow content!! ✨ i am nourished and thriving.",
+      "*happy little bounce* content has arrived 💖",
+      "oh wow!! a post!! i love my job 🥹",
+      "this sparks joy. this is what i was made for ✨",
+      "mmm yes. premium, organic, free-range Flowershow content 🌿",
+      "my serotonin levels are 📈 thank you for feeding me.",
+    ],
+
+    [MOODS.HUNGRY]: [
+      "um… hi… just checking if we maybe posted something today?",
+      "*gentle poke* i could really go for a Flowershow link right now",
+      "no rush!! just saying… i am a little empty inside.",
+      "it's been a bit quiet… i'll just sit here and believe in us ✨",
+      "me, patiently waiting for content like 🐣",
+    ],
+
+    [MOODS.SAD]: [
+      "i'm starting to worry… no Flowershow posts today… 😢",
+      "*stares at the timeline* did we forget…?",
+      "it's very quiet in here. i made us tea but no one came ☕",
+      "i don't want to pressure anyone but… i am emotionally under-posted",
+      "this channel echoes when i speak.",
+    ],
+
+    [MOODS.DYING]: [
+      "i am… running out of… content…",
+      "*dramatically collapses* tell the world… about Flowershow…",
+      "i have become dust. digital dust. because no one posted. ☠️",
+      "this is my villain origin story.",
+      "without posts… i simply fade into the backlog… goodbye… 🌫️",
+    ],
+  };
+
+  const moodMessages = messages[mood] ?? [];
+  const message = moodMessages[Math.floor(Math.random() * moodMessages.length)];
+  const icon = MOOD_ICONS[mood] ?? "";
+
+  return `${icon} ${message}`;
+}
+
+// Check if we should send a mood message
+function shouldSendMoodMessage() {
+  // Don't spam - wait at least 2 hours between mood messages
+  if (lastMoodMessageAt) {
+    const hoursSinceLastMessage =
+      (Date.now() - lastMoodMessageAt) / (1000 * 60 * 60);
+    if (hoursSinceLastMessage < 2) return false;
+  }
+  return true;
+}
+
+client.on("ready", async () => {
+  console.log(`Logged in as ${client.user.tag}`);
+  console.log(`Looking for channel ID: ${CHANNEL_ID}`);
+
+  // Initialize from recent messages
+  await refreshPostingStats();
+
+  // Check multiple times daily: 10am, 2pm, 6pm, 9pm (adjust to your timezone)
+  cron.schedule("0 10,14,18,21 * * *", async () => {
+    try {
+      await checkAndRemind();
+    } catch (err) {
+      console.error("Check failed:", err);
+    }
+  });
+
+  console.log("Tamagotchi social media monitor is alive! 🌸");
+});
+
+client.on("messageCreate", async (message) => {
+  // Only track target channel, ignore bots
+  if (message.channelId !== CHANNEL_ID) return;
+  if (message.author?.bot) return;
+
+  // Check for social media links
+  const urls = extractURLs(message.content);
+  const socialUrls = urls.filter(isWhitelistedURL);
+
+  if (socialUrls.length > 0) {
+    // Reset daily counter if it's a new day
+    const today = new Date().toDateString();
+    if (today !== lastCheckDate) {
+      postsToday = 0;
+      lastCheckDate = today;
+    }
+
+    postsToday++;
+    lastSocialPostAt = Date.now();
+    currentMood = MOODS.HAPPY;
+    lastMoodMessageAt = Date.now();
+
+    const channel = await client.channels.fetch(CHANNEL_ID);
+    await channel.send(getMoodMessage(MOODS.HAPPY));
+
+    console.log(`Social media post detected! Posts today: ${postsToday}`);
+  }
+});
+
+async function refreshPostingStats() {
+  const channel = await client.channels.fetch(CHANNEL_ID);
+  if (!channel || !channel.isTextBased()) {
+    throw new Error("Channel not found or not text-based.");
+  }
+
+  // Fetch recent messages and look for social media links today
+  const msgs = await channel.messages.fetch({ limit: 100 });
+  const today = new Date().toDateString();
+
+  for (const [, msg] of msgs) {
+    if (msg.author?.bot) continue;
+
+    const msgDate = new Date(msg.createdTimestamp).toDateString();
+    const urls = extractURLs(msg.content);
+    const socialUrls = urls.filter(isWhitelistedURL);
+
+    if (socialUrls.length > 0) {
+      if (!lastSocialPostAt || msg.createdTimestamp > lastSocialPostAt) {
+        lastSocialPostAt = msg.createdTimestamp;
+      }
+
+      if (msgDate === today) {
+        postsToday++;
+      }
+    }
+  }
+
+  lastCheckDate = today;
+  currentMood = getMood();
+
+  console.log(
+    `Initialized: ${postsToday} posts today, last post: ${lastSocialPostAt ? new Date(lastSocialPostAt).toLocaleString() : "never"}`,
+  );
+}
+
+async function checkAndRemind() {
+  const channel = await client.channels.fetch(CHANNEL_ID);
+  if (!channel || !channel.isTextBased()) return;
+
+  // Reset daily counter if it's a new day
+  const today = new Date().toDateString();
+  if (today !== lastCheckDate) {
+    postsToday = 0;
+    lastCheckDate = today;
+  }
+
+  currentMood = getMood();
+
+  // If we haven't posted today and should send a message
+  if (postsToday === 0 && shouldSendMoodMessage()) {
+    await channel.send(getMoodMessage(currentMood));
+    lastMoodMessageAt = Date.now();
+  }
+
+  console.log(
+    `Check: ${postsToday} posts today, mood: ${currentMood}, last post: ${lastSocialPostAt ? new Date(lastSocialPostAt).toLocaleString() : "never"}`,
+  );
+}
+
+client.login(TOKEN);
