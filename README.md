@@ -1,11 +1,13 @@
-# Flowershow Tamagotchi-like Social Media Discord Bot 🌸
+# Publishy - Tamagotchi-style Social Media Reminder Bot 🌸
 
-A Discord bot that monitors your social media posting activity and reacts like a Tamagotchi pet! It tracks when you share Flowershow content on social media platforms and reminds you to post at least once per day.
+A Discord bot that helps your team stay consistent with social media posting. It works by monitoring a Discord channel where you share links to your published posts - when you post on Twitter, LinkedIn, etc., drop the link in your team's "socials" channel and Publishy celebrates! If no one posts for a while, it gets sad and reminds you.
+
+**Note:** Publishy doesn't connect to social media platforms directly. It simply watches a Discord channel for links - your team manually shares links after posting on social media (or has it automated).
 
 ## Features
 
 - **Tamagotchi-style emotional responses** - The bot gets progressively sadder without social media posts
-- **Automatic link detection** - Monitors your Discord channel for whitelisted social media URLs
+- **Automatic link detection** - Monitors a Discord channel where your team shares links to their posts
 - **Daily posting tracker** - Counts how many times you've posted each day
 - **Smart reminders** - Checks multiple times daily and sends mood-appropriate messages
 - **Real-time celebrations** - Immediately reacts when you share social media links
@@ -76,6 +78,13 @@ The bot will connect to Discord and start monitoring your configured channel.
 
 ## How It Works
 
+### The Basic Flow
+
+1. Someone on your team posts content on a social media platform (Twitter, LinkedIn, etc.)
+2. They share the link in your designated Discord channel (e.g., `#socials`)
+3. Publishy detects the link, gets happy, and celebrates
+4. If no one shares links for a while, Publishy gets progressively sadder and sends reminders
+
 ### Tamagotchi Mood System
 
 The bot has 4 emotional states based on posting frequency:
@@ -105,12 +114,14 @@ During **weekend sleep mode** (Saturday/Sunday after a Friday feeding), all chec
 
 ### Link Detection
 
-When you post a message in the monitored channel, the bot:
+When someone posts a message in the monitored Discord channel, the bot:
 
 1. Scans the message for URLs
-2. Checks if any URLs are from whitelisted platforms
+2. Checks if any URLs are from whitelisted social media platforms
 3. If found, updates the daily counter and celebrates immediately
 4. Resets mood to Happy
+
+This means your workflow is: **post on social media → share link in Discord → Publishy is fed!**
 
 ### Whitelisted Platforms
 
@@ -118,12 +129,14 @@ The bot currently recognizes links from:
 
 - X/Twitter (`x.com`, `twitter.com`)
 - Reddit (`reddit.com`)
-- dev.to (`dev.to`)
+- YouTube (`youtube.com`, `youtu.be`)
 - LinkedIn (`linkedin.com`)
 - Hacker News (`news.ycombinator.com`)
 - Medium (`medium.com`)
+- dev.to (`dev.to`)
 - Hashnode (`hashnode.dev`, `hashnode.com`)
 - Substack (`substack.com`)
+- Product Hunt (`producthunt.com`)
 
 ## Configuration
 
@@ -139,7 +152,7 @@ The bot currently recognizes links from:
 
 You can customize the following in [index.js](index.js):
 
-**Whitelisted domains** (line 13):
+**Whitelisted domains**:
 
 ```javascript
 const WHITELISTED_DOMAINS = [
@@ -149,7 +162,7 @@ const WHITELISTED_DOMAINS = [
 ];
 ```
 
-**Check schedule** (line 134):
+**Check schedule**:
 
 ```javascript
 // Current: 10am, 2pm, 6pm, 9pm
@@ -157,7 +170,7 @@ cron.schedule("0 10,14,18,21 * * *", ...)
 // Cron format: "minute hour * * *"
 ```
 
-**Mood timing** (lines 81-84):
+**Mood timing**:
 
 ```javascript
 if (hoursSincePost < 12) return MOODS.HAPPY; // 0-12 hours
@@ -166,14 +179,14 @@ if (hoursSincePost < 24) return MOODS.SAD; // 18-24 hours
 return MOODS.DYING; // 24+ hours
 ```
 
-**Message frequency** (line 122):
+**Message frequency**:
 
 ```javascript
 // Wait at least 2 hours between messages
 if (hoursSinceLastMessage < 2) return false;
 ```
 
-**Custom messages** (lines 88-110):
+**Custom messages**:
 Edit the message arrays for each mood to customize the bot's personality.
 
 ## Bot Behavior Examples
@@ -181,26 +194,34 @@ Edit the message arrays for each mood to customize the bot's personality.
 ### When you post a social media link:
 
 ```
-User: Check out our latest post! https://twitter.com/flowershow/status/123
-Bot: yay! you posted about Flowershow! 🌸✨ i'm so happy and well-fed!
+User: Check out our latest post! https://twitter.com/myproject/status/123
+Bot: 🌸 YAY!! fresh content!! ✨ i am nourished and thriving.
 ```
 
 ### Morning check with no posts yet:
 
 ```
-Bot: um... i'm getting a little hungry for some Flowershow posts... 🥺
+Bot: 🥺 um… hi… just checking if we maybe posted something today?
 ```
 
 ### Evening check still with no posts:
 
 ```
-Bot: i'm getting really sad... no Flowershow posts today... 😢
+Bot: 💔 i'm starting to worry… no posts today… 😢
 ```
 
 ### Late night with no posts:
 
 ```
-Bot: 💀 i'm... fading away... need... Flowershow posts... to live...
+Bot: 💀 i am… running out of… content…
+```
+
+### Weekend sleep mode:
+
+```
+Bot: 😴 Mood: **sleepy**
+🛏️ shhh... i ate well on friday... now i rest...
+*snores in social media*
 ```
 
 ## Troubleshooting
