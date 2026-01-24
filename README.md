@@ -146,7 +146,7 @@ The bot currently recognizes links from:
 | --------------- | -------- | ----------------------------------------------------------------------- |
 | `DISCORD_TOKEN` | Yes      | Your Discord bot token from the Developer Portal                        |
 | `CHANNEL_ID`    | Yes      | The ID of the Discord channel to monitor (e.g., your "socials" channel) |
-| `TIMEZONE`      | No       | Timezone for scheduling (default: `UTC`). Examples: `America/New_York`, `Europe/London`, `Asia/Tokyo` |
+| `TIMEZONE`      | No       | IANA timezone name (default: `UTC`). Examples: `America/New_York`, `Europe/London`, `Asia/Tokyo`. [Full list](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) |
 
 ### Customizing the Bot
 
