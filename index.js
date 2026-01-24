@@ -116,6 +116,9 @@ function getDomain(url) {
 
 // Get Publishy mood based on time since last post
 function getMood() {
+  // Weekend sleep: stay happy if fed on Friday
+  if (isWeekendSleep()) return MOODS.HAPPY;
+
   if (!lastSocialPostAt) {
     const now = new Date();
     const hoursSinceStart = now.getHours();
@@ -175,6 +178,37 @@ function getMoodMessage(mood) {
   const icon = MOOD_ICONS[mood] ?? "";
 
   return `${icon} ${message}`;
+}
+
+// Check if a date is a Friday
+function isFriday(date) {
+  return date.getDay() === 5;
+}
+
+// Check if current day is a weekend (Saturday or Sunday)
+function isWeekend() {
+  const day = new Date().getDay();
+  return day === 0 || day === 6; // Sunday = 0, Saturday = 6
+}
+
+// Check if we're in "weekend sleep" mode
+// This happens when it's a weekend and we were fed on the Friday before
+function isWeekendSleep() {
+  if (!isWeekend()) return false;
+  if (!lastSocialPostAt) return false;
+
+  const lastPostDate = new Date(lastSocialPostAt);
+  if (!isFriday(lastPostDate)) return false;
+
+  // Make sure it's the Friday of this weekend (not a week ago)
+  const now = new Date();
+  const daysSincePost = Math.floor(
+    (now - lastPostDate) / (1000 * 60 * 60 * 24),
+  );
+
+  // If it's Saturday (day=6), Friday was yesterday (1 day ago)
+  // If it's Sunday (day=0), Friday was 2 days ago
+  return daysSincePost <= 2;
 }
 
 // Check if we should send a mood message
@@ -259,6 +293,20 @@ client.on("interactionCreate", async (interaction) => {
   }
 
   if (interaction.commandName === "mood") {
+    // Special response for weekend sleep mode
+    if (isWeekendSleep()) {
+      const sleepyResponses = [
+        `😴 Mood: **sleepy**\n🛏️ shhh... i ate well on friday... now i rest...\n*snores in social media*`,
+        `😴 Mood: **sleepy**\n🍕 friday feeding was *chef's kiss*... do not disturb...\n💤 zzz...posting...zzz...engagement...zzz`,
+        `😴 Mood: **sleepy**\n🌙 weekends are for recharging, not posting\n*curls up in a pile of analytics*`,
+        `😴 Mood: **sleepy**\n✨ i have achieved work-life balance (fed friday, sleep weekend)\n🐣 wake me up when it's monday`,
+      ];
+      const response =
+        sleepyResponses[Math.floor(Math.random() * sleepyResponses.length)];
+      await interaction.reply(response);
+      return;
+    }
+
     currentMood = getMood();
     const icon = MOOD_ICONS[currentMood];
     const hoursSince = lastSocialPostAt
@@ -409,6 +457,12 @@ async function refreshPostingStats() {
 }
 
 async function checkAndRemind() {
+  // Weekend sleep: skip checks if fed on Friday
+  if (isWeekendSleep()) {
+    console.log("Weekend sleep mode - Publishy is resting 😴");
+    return;
+  }
+
   const channel = await client.channels.fetch(CHANNEL_ID);
   if (!channel || !channel.isTextBased()) return;
 
