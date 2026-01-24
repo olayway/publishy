@@ -9,6 +9,8 @@ A Discord bot that monitors your social media posting activity and reacts like a
 - **Daily posting tracker** - Counts how many times you've posted each day
 - **Smart reminders** - Checks multiple times daily and sends mood-appropriate messages
 - **Real-time celebrations** - Immediately reacts when you share social media links
+- **Weekend sleep mode** - Fed on Friday? Publishy rests through the weekend and wakes up Monday
+- **Timezone support** - Configure the bot to work in your team's timezone
 
 ## Commands
 
@@ -45,6 +47,7 @@ A Discord bot that monitors your social media posting activity and reacts like a
    ```
    DISCORD_TOKEN=your_bot_token_here
    CHANNEL_ID=your_channel_id_here
+   TIMEZONE=America/New_York  # optional, defaults to UTC
    ```
 
 ### Discord Bot Setup
@@ -83,10 +86,13 @@ The bot has 4 emotional states based on posting frequency:
 | **Hungry** 🥺 | 12-18 hours          | Gentle reminders about posting              |
 | **Sad** 😢    | 18-24 hours          | More urgent pleas for content               |
 | **Dying** 💀  | > 24 hours           | Dramatic death scenes without posts         |
+| **Sleepy** 😴 | Weekend (fed Friday) | Resting after Friday feeding                |
+
+**Weekend Sleep Mode**: If you feed Publishy on Friday, it will "sleep" through the weekend and skip all checks. It wakes up on Monday ready for a new week!
 
 ### Scheduled Checks
 
-The bot checks your posting status 4 times per day:
+The bot checks your posting status 4 times per day (in your configured timezone):
 
 - **10:00 AM** - Morning check
 - **2:00 PM** - Afternoon check
@@ -94,6 +100,8 @@ The bot checks your posting status 4 times per day:
 - **9:00 PM** - Night check
 
 At each check, if you haven't posted today and it's been at least 2 hours since the last mood message, the bot will send a reminder based on its current mood.
+
+During **weekend sleep mode** (Saturday/Sunday after a Friday feeding), all checks are skipped.
 
 ### Link Detection
 
@@ -125,6 +133,7 @@ The bot currently recognizes links from:
 | --------------- | -------- | ----------------------------------------------------------------------- |
 | `DISCORD_TOKEN` | Yes      | Your Discord bot token from the Developer Portal                        |
 | `CHANNEL_ID`    | Yes      | The ID of the Discord channel to monitor (e.g., your "socials" channel) |
+| `TIMEZONE`      | No       | Timezone for scheduling (default: `UTC`). Examples: `America/New_York`, `Europe/London`, `Asia/Tokyo` |
 
 ### Customizing the Bot
 

@@ -11,10 +11,36 @@ import cron from "node-cron";
 
 const TOKEN = process.env.DISCORD_TOKEN;
 const CHANNEL_ID = process.env.CHANNEL_ID;
+const TIMEZONE = process.env.TIMEZONE || "UTC";
 
 // Safety defaults
 if (!TOKEN) throw new Error("Missing DISCORD_TOKEN in .env");
 if (!CHANNEL_ID) throw new Error("Missing CHANNEL_ID in .env");
+
+// Get current time info in configured timezone
+function getTimeInZone(date = new Date()) {
+  const options = { timeZone: TIMEZONE };
+  const parts = new Intl.DateTimeFormat("en-US", {
+    ...options,
+    weekday: "short",
+    hour: "numeric",
+    hour12: false,
+  }).formatToParts(date);
+
+  const weekday = parts.find((p) => p.type === "weekday")?.value;
+  const hour = parseInt(parts.find((p) => p.type === "hour")?.value || "0", 10);
+
+  // Map weekday name to day number (0=Sun, 1=Mon, ..., 5=Fri, 6=Sat)
+  const dayMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  const day = dayMap[weekday] ?? 0;
+
+  return { day, hour };
+}
+
+// Get date string in configured timezone (for daily reset)
+function getDateStringInZone(date = new Date()) {
+  return date.toLocaleDateString("en-US", { timeZone: TIMEZONE });
+}
 
 // Whitelisted social media domains
 const WHITELISTED_DOMAINS = [
@@ -63,7 +89,7 @@ const commands = [
 // Track daily posting stats
 let lastSocialPostAt = null;
 let postsToday = 0;
-let lastCheckDate = new Date().toDateString();
+let lastCheckDate = getDateStringInZone();
 let currentMood = MOODS.HAPPY;
 let lastMoodMessageAt = null;
 
@@ -120,11 +146,10 @@ function getMood() {
   if (isWeekendSleep()) return MOODS.HAPPY;
 
   if (!lastSocialPostAt) {
-    const now = new Date();
-    const hoursSinceStart = now.getHours();
-    if (hoursSinceStart < 12) return MOODS.HAPPY;
-    if (hoursSinceStart < 16) return MOODS.HUNGRY;
-    if (hoursSinceStart < 20) return MOODS.SAD;
+    const { hour } = getTimeInZone();
+    if (hour < 12) return MOODS.HAPPY;
+    if (hour < 16) return MOODS.HUNGRY;
+    if (hour < 20) return MOODS.SAD;
     return MOODS.DYING;
   }
 
@@ -180,14 +205,15 @@ function getMoodMessage(mood) {
   return `${icon} ${message}`;
 }
 
-// Check if a date is a Friday
+// Check if a date is a Friday (in configured timezone)
 function isFriday(date) {
-  return date.getDay() === 5;
+  const { day } = getTimeInZone(date);
+  return day === 5;
 }
 
-// Check if current day is a weekend (Saturday or Sunday)
+// Check if current day is a weekend (Saturday or Sunday) in configured timezone
 function isWeekend() {
-  const day = new Date().getDay();
+  const { day } = getTimeInZone();
   return day === 0 || day === 6; // Sunday = 0, Saturday = 6
 }
 
@@ -236,16 +262,21 @@ client.on("ready", async () => {
   // Initialize from recent messages
   await refreshPostingStats();
 
-  // Check multiple times daily: 10am, 2pm, 6pm, 9pm (adjust to your timezone)
-  cron.schedule("0 10,14,18,21 * * *", async () => {
-    try {
-      await checkAndRemind();
-    } catch (err) {
-      console.error("Check failed:", err);
-    }
-  });
+  // Check multiple times daily: 10am, 2pm, 6pm, 9pm in configured timezone
+  cron.schedule(
+    "0 10,14,18,21 * * *",
+    async () => {
+      try {
+        await checkAndRemind();
+      } catch (err) {
+        console.error("Check failed:", err);
+      }
+    },
+    { timezone: TIMEZONE },
+  );
 
   console.log("Publishy - the Flowershow social media monitor is alive! 🌸");
+  console.log(`Timezone: ${TIMEZONE}`);
 });
 
 client.on("messageCreate", async (message) => {
@@ -258,8 +289,8 @@ client.on("messageCreate", async (message) => {
   const socialUrls = urls.filter(isWhitelistedURL);
 
   if (socialUrls.length > 0) {
-    // Reset daily counter if it's a new day
-    const today = new Date().toDateString();
+    // Reset daily counter if it's a new day (in configured timezone)
+    const today = getDateStringInZone();
     if (today !== lastCheckDate) {
       postsToday = 0;
       lastCheckDate = today;
@@ -428,12 +459,12 @@ async function refreshPostingStats() {
 
   // Fetch recent messages and look for social media links today
   const msgs = await channel.messages.fetch({ limit: 100 });
-  const today = new Date().toDateString();
+  const today = getDateStringInZone();
 
   for (const [, msg] of msgs) {
     if (msg.author?.bot) continue;
 
-    const msgDate = new Date(msg.createdTimestamp).toDateString();
+    const msgDate = getDateStringInZone(new Date(msg.createdTimestamp));
     const urls = extractURLs(msg.content);
     const socialUrls = urls.filter(isWhitelistedURL);
 
@@ -466,8 +497,8 @@ async function checkAndRemind() {
   const channel = await client.channels.fetch(CHANNEL_ID);
   if (!channel || !channel.isTextBased()) return;
 
-  // Reset daily counter if it's a new day
-  const today = new Date().toDateString();
+  // Reset daily counter if it's a new day (in configured timezone)
+  const today = getDateStringInZone();
   if (today !== lastCheckDate) {
     postsToday = 0;
     lastCheckDate = today;
