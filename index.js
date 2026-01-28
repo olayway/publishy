@@ -57,6 +57,7 @@ const WHITELISTED_DOMAINS = [
   "youtube.com",
   "youtu.be",
   "producthunt.com",
+  "forum.obsidian.md",
 ];
 
 // Publishy mood states
@@ -167,34 +168,34 @@ function getMoodMessage(mood) {
     [MOODS.HAPPY]: [
       "YAY!! fresh Flowershow content!! ✨ i am nourished and thriving.",
       "*happy little bounce* content has arrived 💖",
-      "oh wow!! a post!! i love my job 🥹",
-      "this sparks joy. this is what i was made for ✨",
+      "oh wow!! a post!! i feel so loved 🥹",
+      "this sparks joy. this is what i live for ✨",
       "mmm yes. premium, organic, free-range Flowershow content 🌿",
       "my serotonin levels are 📈 thank you for feeding me.",
     ],
 
     [MOODS.HUNGRY]: [
-      "um… hi… just checking if we maybe posted something today?",
+      "um… hi… just checking if someone maybe has a snack for me today?",
       "*gentle poke* i could really go for a Flowershow link right now",
       "no rush!! just saying… i am a little empty inside.",
-      "it's been a bit quiet… i'll just sit here and believe in us ✨",
+      "it's been a bit quiet… i'll just sit here and wait patiently ✨",
       "me, patiently waiting for content like 🐣",
     ],
 
     [MOODS.SAD]: [
-      "i'm starting to worry… no Flowershow posts today… 😢",
-      "*stares at the timeline* did we forget…?",
-      "it's very quiet in here. i made us tea but no one came ☕",
+      "i'm starting to worry… no one has fed me a post today… 😢",
+      "*stares at the timeline* did you forget about me…?",
+      "it's very quiet in here. i've been waiting by my bowl of posts ☕",
       "i don't want to pressure anyone but… i am emotionally under-posted",
       "this channel echoes when i speak.",
     ],
 
     [MOODS.DYING]: [
-      "i am… running out of… content…",
-      "*dramatically collapses* tell the world… about Flowershow…",
-      "i have become dust. digital dust. because no one posted. ☠️",
-      "this is my villain origin story.",
-      "without posts… i simply fade into the backlog… goodbye… 🌫️",
+      "i am… fading… need… content…",
+      "*dramatically collapses* i just wanted… to be fed some posts…",
+      "i have become dust. digital dust. because no one fed me. ☠️",
+      "this is my villain origin story. 😈",
+      "without posts… i simply fade into nothing… goodbye… 🌫️",
     ],
   };
 
